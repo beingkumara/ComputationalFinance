@@ -21,7 +21,9 @@
     "react-mathjax": "1.0.1",
     "react-mathjax2": "0.0.2",
     "react-router-dom": "6.10.0",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "@pyscript/core": "0.4.6",
+    "pyscript": "1.0.6"
   },
   "devDependencies": {
     "@babel/runtime": "7.13.8",

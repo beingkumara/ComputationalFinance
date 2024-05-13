@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { monteCarlo } from "./Call/Monetcarlo";
-import { binomailTree } from "./Call/Binomialtree";
+import { binomialTree } from "./Call/Binomialtree";
 import { blackScholes } from "./Call/BlackScholes";
 import { binomialPut } from "./Put/BinomialPut";
 import { blackScholesPut } from "./Put/BlackScholesPut";
 import { monteCarloPut } from "./Put/MonteCarloPut";
+import { finiteDifference } from "./Call/FDMOriginal";
+import { finiteDifferencePut } from "./Put/FDMPut";
 import { deltaPut, deltaCall } from "./Greek/Delta";
 import { gammaCallAndPut } from "./Greek/Gamma";
 import { RhoCall, RhoPut } from "./Greek/Rho";
@@ -14,6 +16,35 @@ import Card from "./Card";
 import Show from "./Show";
 import Input from "./Input";
 import { InputGroup } from "react-bootstrap";
+import { deltaBinomial } from "./Greek/BinomialGreeks/BinDelta";
+import { gammaBinomial } from "./Greek/BinomialGreeks/BinGamma";
+import { vegaBinomial } from "./Greek/BinomialGreeks/BinVega";
+import { rhoBinomial } from "./Greek/BinomialGreeks/BinRho";
+import { thetaBinomial } from "./Greek/BinomialGreeks/BinTheta";
+import { monteDelta } from "./Greek/MonteGreeks/MonteDelta";
+import { monteGamma } from "./Greek/MonteGreeks/MonteGamma";
+import { monteRho } from "./Greek/MonteGreeks/MonteRho";
+import { monteVega } from "./Greek/MonteGreeks/MonteVega";
+import { monteTheta } from "./Greek/MonteGreeks/MonteTheta";
+import { fdmDelta } from "./Greek/FDMGreeks/FDMDelta";
+import { fdmGamma } from "./Greek/FDMGreeks/FDMGamma";
+import { fdmRho } from "./Greek/FDMGreeks/FDMRho";
+import { fdmVega } from "./Greek/FDMGreeks/FDMVega";
+import { fdmTheta } from "./Greek/FDMGreeks/FDMTheta";
+import { americanBinomial } from "./Call/American/Binomial";
+import { americanBinomialPut } from "./Put/American/AmericanBinomialPut";
+import { deltaAmerican } from "./Call/American/BinDelta";
+import { gammaAmerican } from "./Call/American/BinGamma";
+import { thetaAmerican } from "./Call/American/BinTheta";
+import { vegaAmerican } from "./Call/American/BinVega";
+import { rhoAmerican } from "./Call/American/BinRho";
+import { deltaAmPut } from "./Put/American/BinDelta";
+import { gammaAmPut } from "./Put/American/BinGamma";
+import { thetaAmPut } from "./Put/American/BinTheta";
+import { vegaAmPut } from "./Put/American/BinVega";
+import { rhoAmPut } from "./Put/American/BinRho";
+import { americanMonteCarlo } from "./Put/American/MonteAmerican";
+// import { Graph } from "./Graph/graph";
 
 // import './Calculator.css'; // Import the CSS file for styling
 
@@ -24,12 +55,13 @@ const placeholders = [
   "Volatility",
   "Dividend",
   "Maturity Time(Year)",
-  "Number Of Simulations"
+  "Number Of Simulations",
 ];
 const names = ["Option Price", "Gamma", "Delta", "Theta", "Vega", "Rho"];
 
 function Calculator() {
   const [operation, setOperation] = useState("SO");
+  const [optionType, setOption] = useState("SOT");
   const [inputValues, setInputValues] = useState(["", "", "", "", "", "", ""]);
   const [result, setResult] = useState([]);
   // const [greeks, setGreeks] = useState({});
@@ -48,6 +80,10 @@ function Calculator() {
   const handleOperationChange = (event) => {
     setOperation(event.target.value);
   };
+  const handleOptionChange = (event) => {
+    setOption(event.target.value);
+  };
+  //newly added for american and european differntiation
   // const handleGreekChange = (event) => {
   //   setGreeks(event.target.value);
   // };
@@ -66,107 +102,152 @@ function Calculator() {
     let rho;
 
     let computedResult;
-    switch (option) {
-      case "Put":
-        delta = deltaPut(inputValues);
-        vega = Vega(inputValues);
-        theta = ThetaPut(inputValues);
-        gamma = gammaCallAndPut(inputValues);
-        rho = RhoPut(inputValues);
-        switch (operation) {
-          case "BS":
-            computedResult = blackScholesPut(inputValues);
-            break;
-          case "BT":
-            computedResult = binomialPut(inputValues);
-            break;
-          case "MC":
-            computedResult = monteCarloPut(inputValues);
-            break;
+    const S = inputValues[0];
+    const k = inputValues[1];
+    const r = inputValues[2];
+    const sigma = inputValues[3];
+    const q = inputValues[4];
+    const T = inputValues[5];
+    const N = inputValues[6];
+    switch (optionType) {
+      case "EO":
+        switch (option) {
+          case "Put":
+            switch (operation) {
+              case "BS":
+                delta = deltaPut(inputValues);
+                vega = Vega(inputValues);
+                theta = ThetaPut(inputValues);
+                gamma = gammaCallAndPut(inputValues);
+                rho = RhoPut(inputValues);
+                computedResult = blackScholesPut(inputValues);
+                break;
+              case "BT":
+                delta = deltaBinomial(S, k, r, sigma, q, T, N);
+                gamma = gammaBinomial(S, k, r, sigma, q, T, N);
+                vega = vegaBinomial(S, k, r, sigma, q, T, N);
+                rho = rhoBinomial(S, k, r, sigma, q, T, N);
+                theta = thetaBinomial(S, k, r, sigma, q, T, N);
+                computedResult = binomialTree(inputValues).toFixed(2);
+                break;
+              case "MC":
+                delta = monteDelta(S, k, r, sigma, q, T, N).toFixed(2);
+                gamma = monteGamma(S, k, r, sigma, q, T, N);
+                rho = monteRho(S, k, r, sigma, q, T, N);
+                vega = monteVega(S, k, r, sigma, q, T, N);
+                theta = monteTheta(S, k, r, sigma, q, T, N);
+                computedResult = monteCarloPut(inputValues);
+                break;
+              case "FDM":
+                delta = fdmDelta(S, k, r, sigma, q, T, N);
+                gamma = fdmGamma(S, k, r, sigma, q, T, N);
+                rho = fdmRho(S, k, r, sigma, q, T, N);
+                vega = fdmVega(S, k, r, sigma, q, T, N);
+                theta = fdmTheta(S, k, r, sigma, q, T, N);
+                computedResult = finiteDifferencePut(inputValues);
+                break;
 
+              default:
+                computedResult = "";
+            }
+            break;
+          case "Call":
+            switch (operation) {
+              case "BS":
+                delta = deltaCall(inputValues);
+                vega = Vega(inputValues);
+                theta = ThetaCall(inputValues);
+                gamma = gammaCallAndPut(inputValues);
+                rho = RhoCall(inputValues);
+                computedResult = blackScholes(inputValues);
+                break;
+              case "BT":
+                delta = deltaBinomial(S, k, r, sigma, q, T, N);
+                gamma = gammaBinomial(S, k, r, sigma, q, T, N);
+                vega = vegaBinomial(S, k, r, sigma, q, T, N);
+                rho = rhoBinomial(S, k, r, sigma, q, T, N);
+                theta = thetaBinomial(S, k, r, sigma, q, T, N);
+                computedResult = binomialTree(inputValues).toFixed(2);
+                break;
+              case "MC":
+                delta = monteDelta(S, k, r, sigma, q, T, N).toFixed(2);
+                gamma = monteGamma(S, k, r, sigma, q, T, N);
+                rho = monteRho(S, k, r, sigma, q, T, N);
+                vega = monteVega(S, k, r, sigma, q, T, N);
+                theta = monteTheta(S, k, r, sigma, q, T, N);
+                computedResult = monteCarlo(inputValues);
+                break;
+              case "FDM":
+                delta = fdmDelta(S, k, r, sigma, q, T, N).toFixed(2);
+                gamma = fdmGamma(S, k, r, sigma, q, T, N);
+                rho = fdmRho(S, k, r, sigma, q, T, N);
+                vega = fdmVega(S, k, r, sigma, q, T, N);
+                theta = fdmTheta(S, k, r, sigma, q, T, N);
+                computedResult = finiteDifference(inputValues);
+                break;
+
+              default:
+                computedResult = "";
+            }
+            break;
           default:
             computedResult = "";
         }
         break;
-      case "Call":
-        delta = deltaCall(inputValues);
-        vega = Vega(inputValues);
-        theta = ThetaCall(inputValues);
-        gamma = gammaCallAndPut(inputValues);
-        rho = RhoCall(inputValues);
-        switch (operation) {
-          case "BS":
-            computedResult = blackScholes(inputValues);
+
+      case "AO":
+        switch (option) {
+          case "Put":
+            switch (operation) {
+              case "BS":
+                computedResult =
+                  "The Black-Scholes model is only used to price European options and does not take into account that American options could be exercised before the expiration date";
+                break;
+              case "BT":
+                delta = deltaAmPut(S, k, r, sigma, q, T, N);
+                gamma = gammaAmPut(S, k, r, sigma, q, T, N);
+                vega = vegaAmPut(S, k, r, sigma, q, T, N);
+                rho = rhoAmPut(S, k, r, sigma, q, T, N);
+                theta = thetaAmPut(S, k, r, sigma, q, T, N);
+                computedResult = americanBinomialPut(inputValues);
+                break;
+            }
             break;
-          case "BT":
-            computedResult = binomailTree(inputValues);
-            break;
-          case "MC":
-            computedResult = monteCarlo(inputValues);
+
+          case "Call":
+            switch (operation) {
+              case "BS":
+                computedResult =
+                  "The Black-Scholes model is not directly applicable to pricing American options. Alternative methods like LSMC or lattice models are typically employed to account for early exercise possibilities.";
+                break;
+
+              case "BT":
+                delta = deltaAmerican(S, k, r, sigma, q, T, N);
+                gamma = gammaAmerican(S, k, r, sigma, q, T, N);
+                vega = vegaAmerican(S, k, r, sigma, q, T, N);
+                rho = rhoAmerican(S, k, r, sigma, q, T, N);
+                theta = thetaAmerican(S, k, r, sigma, q, T, N);
+                computedResult = americanBinomial(inputValues);
+                break;
+
+              case "MC":
+                computedResult = americanMonteCarlo(inputValues);
+                break;
+            }
             break;
 
           default:
-            computedResult = "";
+            break;
         }
         break;
       default:
-        computedResult = "";
+        break;
     }
+
     // setInputValues(["", "", "", "", "", "", ""]);
 
     setResult([computedResult, gamma, delta, theta, vega, rho]);
   };
-  // const handleCalculateGreek = (event) => {
-  //   event.preventDefault();
-  //   let greekResult;
-  //   switch (option) {
-  //     case "Call":
-  //       switch (greek) {
-  //         case "Delta":
-  //           greekResult = deltaCall(inputValues);
-  //           break;
-  //         case "Gamma":
-  //           greekResult = gammaCallAndPut(inputValues);
-  //           break;
-  //         case "Rho":
-  //           greekResult = RhoCall(inputValues);
-  //           break;
-  //         case "Theta":
-  //           greekResult = ThetaCall(inputValues);
-  //           break;
-  //         case "Vega":
-  //           greekResult = Vega(inputValues);
-  //           break;
-  //         default:
-  //           greekResult = "Greeks";
-  //       }
-  //       break;
-  //     case "Put":
-  //       switch (greek) {
-  //         case "Delta":
-  //           greekResult = deltaPut(inputValues);
-  //           break;
-  //         case "Gamma":
-  //           greekResult = gammaCallAndPut(inputValues);
-  //           break;
-  //         case "Rho":
-  //           greekResult = RhoPut(inputValues);
-  //           break;
-  //         case "Theta":
-  //           greekResult = ThetaPut(inputValues);
-  //           break;
-  //         case "Vega":
-  //           greekResult = Vega(inputValues);
-  //           break;
-  //         default:
-  //           greekResult = "Greeks";
-  //       }
-  //       break;
-  //     default:
-  //       break;
-  //   }
-  //   setgreekResult(greekResult);
-  // };
 
   return (
     <div className="row ">
@@ -186,6 +267,19 @@ function Calculator() {
 
           <select
             className="operation-select"
+            value={optionType}
+            onChange={handleOptionChange}
+            placeholder="Select Option"
+          >
+            <option value="SOT" disabled hidden>
+              SELECT OPTION TYPE
+            </option>
+            <option value="EO">EUROPEAN OPTION</option>
+            <option value="AO">AMERICAN OPTION</option>
+          </select>
+
+          <select
+            className="operation-select"
             value={operation}
             onChange={handleOperationChange}
             placeholder="Select Option"
@@ -196,6 +290,7 @@ function Calculator() {
             <option value="BS">BLACK SCHOLES</option>
             <option value="BT">BINOMIAL TREE</option>
             <option value="MC">MONTE CARLO</option>
+            <option value="FDM">FINITE DIFFERENCE METHOD</option>
           </select>
           <div className="row" style={{ margin: "10px" }}>
             <div className="col-sm 6 form-check">
@@ -236,77 +331,6 @@ function Calculator() {
           ))}
         </p>
       </div>
-      {/* <Card /> */}
-      {/* </div> */}
-      {/* <div className="col-md-6 greek ">
-        <h1>Option Greeks</h1>
-        <form onSubmit={handleCalculateGreek} style={{ color: "white" }}>
-          <div className="form-check ">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="flexRadioDefault"
-              id="flexRadioDefault1"
-              onChange={handleGreekChange}
-              value="Delta"
-            />
-            <label className="form-check-label">Delta</label>
-          </div>
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="flexRadioDefault"
-              id="flexRadioDefault1"
-              onChange={handleGreekChange}
-              value="Gamma"
-            />
-            <label className="form-check-label">Gamma</label>
-          </div>
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="flexRadioDefault"
-              id="flexRadioDefault2"
-              value="Rho"
-              onChange={handleGreekChange}
-            />
-            <label className="form-check-label" for="flexRadioDefault2">
-              Rho
-            </label>
-          </div>
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="flexRadioDefault"
-              id="flexRadioDefault1"
-              value="Vega"
-              onChange={handleGreekChange}
-            />
-            <label className="form-check-label">Vega</label>
-          </div>
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="flexRadioDefault"
-              id="flexRadioDefault2"
-              value="Theta"
-              onChange={handleGreekChange}
-            />
-            <label className="form-check-label">Theta</label>
-          </div>
-          <button type="submit" className="calculate-btn calculate-btn2">
-            Calculate
-          </button>
-        </form>
-        <p className="result">
-          Greek:
-          <br /> {calcgreek}
-        </p>
-      </div> */}
     </div>
   );
 }
